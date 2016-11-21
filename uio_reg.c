@@ -36,9 +36,122 @@
 #include <fcntl.h> /*open*/
 #include <sys/mman.h> /*mmap*/
 #include <unistd.h> /*close*/
+#include <getopt.h> /*getopt_long*/
+#include <stdint.h> /*uint32_t*/
 
 #define UIO_NAME "/dev/uio0"
 #define BAR0_SIZE 0x20000
+
+enum op_type {
+	OP_READ=0,
+	OP_WRITE
+};
+
+/* paramter from command line */
+struct input_param {
+	enum op_type operate; /* read or write? */
+	uint32_t offset; /* register's offset in BAR */
+	union {
+		uint64_t size; /* for read operation */
+		uint64_t value; /* for write operation */
+	};
+} input_param = {
+	.operate = OP_READ,
+	.offset = 0x0,
+	.size = 1,
+};
+
+
+/* dump the --help */
+void help_dump() {
+	printf("This is help information.\n");
+}
+
+/* parse and check the parameter */
+/* return -1 for error otherwise return 0 */
+int opt_parse(int argc, char *argv[])
+{
+	#define OPT_STRING "r:w:"
+	struct option long_options[] = {
+		{"read", required_argument, NULL, 'r'},
+		{"write", required_argument, NULL, 'w'},
+		{"help", no_argument, NULL, 'h'},
+		{0, 0, 0, 0}
+	};
+
+	int ret = 0;
+	int digit_optind = 0;
+	int option_index = 0;
+
+	int operation_sem = 0;
+	char *endptr = NULL;
+
+	while (1) {
+		//int this_option_index = optind ? optind : 1; /* optind is next element in argv */
+		option_index = 0;
+
+		ret = getopt_long(argc, argv, OPT_STRING, long_options, &option_index);
+		if (ret == -1) /* all command-line option has parsed */
+			break;
+
+		switch (ret) {
+		case 'r':
+			if (operation_sem == 1) {
+				printf("ERROR:Can't read (-r) and write (-w) a register at same time!\n");
+				return -1;
+			}
+
+			input_param.operate = OP_READ;
+			input_param.offset = strtol(optarg, &endptr, 16);
+
+			/* -r maybe have two arguments, ADDR and SIZE. So I check if the next element start with '-' */
+			if (optind != argc && argv[optind][0] != '-') {
+				input_param.size = strtoll(argv[optind], &endptr, 0);
+				optind ++;
+			}
+			else
+				input_param.size = 1;
+
+			if (input_param.size > 0x100000) {
+				/* I don't think it's necessary to read more than 1M registers, agree with me? */
+				printf("ERROR:uio_reg think it is not necessary to read more than 1M registers.Please make the SIZE smaller than 1M.\n");
+				return -1;
+			}
+
+			operation_sem = 1;
+			break;
+		case 'w':
+			if (operation_sem == 1) {
+				printf("ERROR:Can't read (-r) and write (-w) a register at same time!\n");
+				return -1;
+			}
+
+			input_param.operate = OP_WRITE;
+			input_param.offset = strtol(optarg, &endptr, 16);
+
+			/* -w must have two arguments, optind is point to next element when element have only one argument. */
+			if (optind != argc && argv[optind][0] == '-') {
+				printf("ERROR:Write register need two arguments, OFFSET and VALUE.\n");
+				return -1;
+			}
+
+			input_param.value = strtoll(argv[optind], &endptr, 16);
+
+			operation_sem = 1;
+			break;
+		case 'h':
+			/* just dump the --help */
+			break;
+		case '?':
+			/* getopt_long will print log by itself */
+			break;
+		default:
+			printf("unknown command-line options: %c\n", optopt);
+		}
+	}
+
+	return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -51,6 +164,15 @@ int main(int argc, char *argv[])
 		printf("error with input, should be: uio_reg REG_OFFSET, and REG_OFFSET must be hexadecimal\n");
 		return -1;
 	}
+
+	opt_parse(argc, argv);
+
+	if (input_param.operate == OP_READ)
+		printf("read, offset 0x%08X, length %lu.\n", input_param.offset, input_param.size);
+	else
+		printf("write, offset 0x%08X, value 0x%016lX.\n", input_param.offset, input_param.value);
+
+	return 0; /* for test */
 
 	reg_offset = strtol(argv[1], &endptr,16);
 	reg_offset &= ~0x03;
