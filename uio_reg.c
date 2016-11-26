@@ -63,13 +63,13 @@ struct input_param {
 
 
 /* dump the --help */
-void help_dump() {
+void dump_help_info() {
 	printf("This is help information.\n");
 }
 
 /* parse and check the parameter */
 /* return -1 for error otherwise return 0 */
-int opt_parse(int argc, char *argv[])
+int parse_opt(int argc, char *argv[])
 {
 	#define OPT_STRING "r:w:"
 	struct option long_options[] = {
@@ -80,24 +80,31 @@ int opt_parse(int argc, char *argv[])
 	};
 
 	int ret = 0;
-	int digit_optind = 0;
 	int option_index = 0;
+	int cur_optind = 0;
 
 	int operation_sem = 0;
 	char *endptr = NULL;
 
 	while (1) {
-		//int this_option_index = optind ? optind : 1; /* optind is next element in argv */
 		option_index = 0;
+		cur_optind = optind ? optind : 1;
 
 		ret = getopt_long(argc, argv, OPT_STRING, long_options, &option_index);
-		if (ret == -1) /* all command-line option has parsed */
-			break;
+		if (ret == -1) {
+			/* all command-line option has parsed */
+			if (optind < argc) {
+				printf("[ERROR] invalid option of %s.\n", argv[optind]);
+				return -1;
+			}
+			else
+				return 0;
+		}
 
 		switch (ret) {
 		case 'r':
 			if (operation_sem == 1) {
-				printf("ERROR:Can't read (-r) and write (-w) a register at same time!\n");
+				printf("[ERROR] Can't read (-r) and write (-w) a register at same time!\n");
 				return -1;
 			}
 
@@ -114,7 +121,7 @@ int opt_parse(int argc, char *argv[])
 
 			if (input_param.size > 0x100000) {
 				/* I don't think it's necessary to read more than 1M registers, agree with me? */
-				printf("ERROR:uio_reg think it is not necessary to read more than 1M registers.Please make the SIZE smaller than 1M.\n");
+				printf("[ERROR] uio_reg think it is not necessary to read more than 1M registers.Please make the SIZE smaller than 1M.\n");
 				return -1;
 			}
 
@@ -122,7 +129,7 @@ int opt_parse(int argc, char *argv[])
 			break;
 		case 'w':
 			if (operation_sem == 1) {
-				printf("ERROR:Can't read (-r) and write (-w) a register at same time!\n");
+				printf("[ERROR] Can't read (-r) and write (-w) a register at same time!\n");
 				return -1;
 			}
 
@@ -131,7 +138,7 @@ int opt_parse(int argc, char *argv[])
 
 			/* -w must have two arguments, optind is point to next element when element have only one argument. */
 			if (optind != argc && argv[optind][0] == '-') {
-				printf("ERROR:Write register need two arguments, OFFSET and VALUE.\n");
+				printf("[ERROR] Write register need two arguments, OFFSET and VALUE.\n");
 				return -1;
 			}
 
@@ -144,9 +151,11 @@ int opt_parse(int argc, char *argv[])
 			break;
 		case '?':
 			/* getopt_long will print log by itself */
+			return -1;
 			break;
 		default:
-			printf("unknown command-line options: %c\n", optopt);
+			printf("[ERROR] Didn't support this command-line options now: %s\n", argv[cur_optind]);
+			return -1;
 		}
 	}
 
@@ -160,12 +169,9 @@ int main(int argc, char *argv[])
 	unsigned char *pci_bar0 = NULL;
 	char *endptr = NULL;
 
-	if (argc < 2) {
-		printf("error with input, should be: uio_reg REG_OFFSET, and REG_OFFSET must be hexadecimal\n");
+	if (parse_opt(argc, argv) != 0)
+		/* already print error log in subroutine. */
 		return -1;
-	}
-
-	opt_parse(argc, argv);
 
 	if (input_param.operate == OP_READ)
 		printf("read, offset 0x%08X, length %lu.\n", input_param.offset, input_param.size);
