@@ -42,6 +42,8 @@
 #define UIO_NAME "/dev/uio0"
 #define BAR0_SIZE 0x20000
 
+static char *cmd_name = NULL; /* store argv[0] */
+
 enum op_type {
 	OP_READ=0,
 	OP_WRITE
@@ -64,14 +66,21 @@ struct input_param {
 
 /* dump the --help */
 void dump_help_info() {
-	printf("This is help information.\n");
+	printf("Usage: %s [OPTION]\n", cmd_name);
+	printf("A command tool for access UIO device's register.\n");
+	printf("OPTION:\n");
+	printf("\t-r/--read OFFSET [SIZE]: Read a serial of registers begin at OFFSET. The register count is SIZE.\n");
+        printf("\t                         The default value of SIZE is 1.\n");
+	printf("\t-w/--write OFFSET VALUE: Write VALUE to register which the offset is OFFSET.\n");
+	printf("\t-h/--help              : Dump this help information.\n");
+	printf("Author: dong.wang.pro@hotmail.com. Plase send email to me for any suggestions.\n");
 }
 
 /* parse and check the parameter */
-/* return -1 for error otherwise return 0 */
+/* return -1 for stop running (error or help) otherwise return 0 */
 int parse_opt(int argc, char *argv[])
 {
-	#define OPT_STRING "r:w:"
+	#define OPT_STRING "r:w:h"
 	struct option long_options[] = {
 		{"read", required_argument, NULL, 'r'},
 		{"write", required_argument, NULL, 'w'},
@@ -148,6 +157,8 @@ int parse_opt(int argc, char *argv[])
 			break;
 		case 'h':
 			/* just dump the --help */
+			dump_help_info();
+			return -1;
 			break;
 		case '?':
 			/* getopt_long will print log by itself */
@@ -168,6 +179,8 @@ int main(int argc, char *argv[])
 	unsigned int reg_offset = 0;
 	unsigned char *pci_bar0 = NULL;
 	char *endptr = NULL;
+
+	cmd_name = argv[0];
 
 	if (parse_opt(argc, argv) != 0)
 		/* already print error log in subroutine. */
