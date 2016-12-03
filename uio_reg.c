@@ -123,7 +123,7 @@ int parse_opt(int argc, char *argv[])
 			/* -r maybe have two arguments, ADDR and SIZE. So I check if the next element start with '-' */
 			if (optind != argc && argv[optind][0] != '-') {
 				input_param.size = strtoll(argv[optind], &endptr, 0);
-				optind ++;
+				optind++;
 			}
 			else
 				input_param.size = 1;
@@ -146,12 +146,13 @@ int parse_opt(int argc, char *argv[])
 			input_param.offset = strtol(optarg, &endptr, 16);
 
 			/* -w must have two arguments, optind is point to next element when element have only one argument. */
-			if (optind != argc && argv[optind][0] == '-') {
+			if (optind == argc || argv[optind][0] == '-') {
 				printf("[ERROR] Write register need two arguments, OFFSET and VALUE.\n");
 				return -1;
 			}
 
 			input_param.value = strtoll(argv[optind], &endptr, 16);
+			optind++;
 
 			operation_sem = 1;
 			break;
