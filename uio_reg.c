@@ -106,6 +106,11 @@ int parse_opt(int argc, char *argv[])
 				printf("[ERROR] invalid option of %s.\n", argv[optind]);
 				return -1;
 			}
+			if (argc == 1) {
+				/* must have options */
+				dump_help_info();
+				return -1;
+			}
 			else
 				return 0;
 		}
