@@ -54,13 +54,13 @@ struct input_param {
 	enum op_type operate; /* read or write? */
 	uint32_t offset; /* register's offset in BAR */
 	union {
-		uint64_t size; /* for read operation */
-		uint64_t value; /* for write operation */
+		uint32_t count; /* how many registers to be read */
+		uint32_t value; /* for write operation */
 	};
 } input_param = {
 	.operate = OP_READ,
 	.offset = 0x0,
-	.size = 1,
+	.count = 1,
 };
 
 
@@ -127,13 +127,13 @@ int parse_opt(int argc, char *argv[])
 
 			/* -r maybe have two arguments, ADDR and SIZE. So I check if the next element start with '-' */
 			if (optind != argc && argv[optind][0] != '-') {
-				input_param.size = strtoll(argv[optind], &endptr, 0);
+				input_param.count = strtol(argv[optind], &endptr, 0);
 				optind++;
 			}
 			else
-				input_param.size = 1;
+				input_param.count = 1;
 
-			if (input_param.size > 0x100000) {
+			if (input_param.count > 0x100000) {
 				/* I don't think it's necessary to read more than 1M registers, agree with me? */
 				printf("[ERROR] uio_reg think it is not necessary to read more than 1M registers.Please make the SIZE smaller than 1M.\n");
 				return -1;
@@ -156,7 +156,7 @@ int parse_opt(int argc, char *argv[])
 				return -1;
 			}
 
-			input_param.value = strtoll(argv[optind], &endptr, 16);
+			input_param.value = strtol(argv[optind], &endptr, 16);
 			optind++;
 
 			operation_sem = 1;
@@ -179,30 +179,61 @@ int parse_opt(int argc, char *argv[])
 	return 0;
 }
 
+#define COLUME_GAP	"        " /* 8 */
+#define COLUME_OFFSET	"    OFFSET" /* 10 */
+#define COLUME_VALUE	"             VALUE" /* 18 */
+/* print 32bit registers */
+void read_reg_32(void *pci_bar, uint32_t offset, uint32_t count)
+{
+	uint32_t i;
+	uint32_t *reg_addr = (uint32_t*)((char*)pci_bar+offset); /* the address of frist register */
+
+	printf( COLUME_OFFSET COLUME_GAP COLUME_VALUE "\n" );
+
+	for (i=0; i<count; i++) {
+		printf("0x%08X"COLUME_GAP"        0x%08X\n", offset+i*4, reg_addr[i]);
+	}
+}
+
+/* print 64bit registers */
+void read_reg_64(void *pci_bar, uint32_t offset, uint32_t count)
+{
+	uint32_t i;
+	uint64_t *reg_addr = (uint64_t*)((char*)pci_bar+offset);
+
+	printf( COLUME_OFFSET COLUME_GAP COLUME_VALUE "\n" );
+
+	for (i=0; i<count; i++) {
+		printf("0x%08X"COLUME_GAP"0x%016lX\n", offset+i*8, reg_addr[i]);
+	}
+}
+
+
+/* wirte value to 32bit register */
+void write_reg_32(void *pci_bar, uint32_t offset, uint32_t value)
+{
+	uint32_t *reg_addr = (uint32_t*)((char*)pci_bar+offset);
+
+	*reg_addr = value;
+}
+
+
 int main(int argc, char *argv[])
 {
 	int uio_fd;
-	unsigned int reg_offset = 0;
 	unsigned char *pci_bar0 = NULL;
-	char *endptr = NULL;
 
 	cmd_name = argv[0];
 
-	if (parse_opt(argc, argv) != 0)
+	if (parse_opt(argc, argv) != 0) {
 		/* already print error log in subroutine. */
 		return -1;
+	}
 
 	if (input_param.operate == OP_READ)
-		printf("read, offset 0x%08X, length %lu.\n", input_param.offset, input_param.size);
+		printf("read, offset 0x%08X, length %u.\n", input_param.offset, input_param.count);
 	else
-		printf("write, offset 0x%08X, value 0x%016lX.\n", input_param.offset, input_param.value);
-
-	return 0; /* for test */
-
-	reg_offset = strtol(argv[1], &endptr,16);
-	reg_offset &= ~0x03;
-	/* test */
-	printf("reg_offset is 0x%08X\n", reg_offset);
+		printf("write, offset 0x%08X, value 0x%08X.\n", input_param.offset, input_param.value);
 
 	/* open the uio device which is input from commandline */
 	uio_fd = open(UIO_NAME, O_RDWR);
@@ -220,7 +251,13 @@ int main(int argc, char *argv[])
 	}
 
 	/* now access register */
-	printf("reg[0x%08X]: 0x%08X\n", reg_offset, *(unsigned int*)&pci_bar0[reg_offset]);
+	if (input_param.operate == OP_READ) {
+		read_reg_32(pci_bar0, input_param.offset, input_param.count);
+	} else if (input_param.operate == OP_WRITE) {
+		write_reg_32(pci_bar0, input_param.offset, input_param.value);
+	} else {
+		printf("Unkown operate type, must be -r for read or -w for write.\n");
+	}
 
 	munmap(pci_bar0, BAR0_SIZE);
 	close(uio_fd);
