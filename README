@@ -1,56 +1,27 @@
-This is simple tool to access MMIO register of BAR0. Commonly, I use it to debug NIC PMD of DPDK.
+This is simple tool to access MMIO register of BAR0. Commonly, I use it to debug NIC PMD in DPDK.
 
 HOWTO
 
-Step 1 MODIFY SOURCE CODE
-For the very early version, you should change these two macro's value in uio_reg.c before using it.
-
-#define UIO_NAME "/dev/uio0"
-#define BAR0_SIZE 0x20000
-
-For example, my PCIe device's BDF is 0000:00:19.0. Now we should get these information:
-
-dong@X220:~$ lspci | grep -i eth
-00:19.0 Ethernet controller: Intel Corporation 82579LM Gigabit Network Connection (rev 04)
-dong@X220:~$ cd /sys/bus/pci/devices/0000\:00\:19.0/uio/
-dong@X220:/sys/bus/pci/devices/0000:00:19.0/uio$ ls
-uio0
-dong@X220:/sys/bus/pci/devices/0000:00:19.0/uio$ sudo lspci -v -s 00:19.0
-00:19.0 Ethernet controller: Intel Corporation 82579LM Gigabit Network Connection (rev 04)
-	Subsystem: Lenovo 82579LM Gigabit Network Connection
-	Flags: bus master, fast devsel, latency 0, IRQ 20
-	Memory at f2500000 (32-bit, non-prefetchable) [size=128K]
-	Memory at f252b000 (32-bit, non-prefetchable) [size=4K]
-	I/O ports at 5080 [size=32]
-	Capabilities: [c8] Power Management version 2
-	Capabilities: [d0] MSI: Enable- Count=1/1 Maskable- 64bit+
-	Capabilities: [e0] PCI Advanced Features
-	Kernel driver in use: igb_uio
-	Kernel modules: e1000e
-
-We can find the UIO device name is uio0, so the UIO_NAME is defined to "/dev/uio0".
-The BAR0's information is "Memory at f2500000 (32-bit, non-prefetchable) [size=128K]", it's size is 128K which equal to 0x20000. So the BAR0_SIZE is defined to 0x20000.
-
-Step 2 COMPILE SOURCE CODE
-dong@X220:~/work/uio_reg/src/uio_reg$ ls
-Makefile  uio_reg.c
-dong@X220:~/work/uio_reg/src/uio_reg$ make
+Step 1 COMPILE SOURCE CODE
+dong@W530:~/work/uio_reg/src/uio_reg$ make
 gcc -g -Wall -c uio_reg.c
 gcc -g -Wall uio_reg.o -o uio_reg
-dong@X220:~/work/uio_reg/src/uio_reg$ ls
+dong@W530:~/work/uio_reg/src/uio_reg$ ls
 Makefile  uio_reg  uio_reg.c  uio_reg.o
 
-Step 3 RUN
+Step 2 RUN
 The PCIe device is 82579 NIC. We can verify the application by access ethernet address register (RAL and RAH).
-dong@X220:~/work/uio_reg/src/uio_reg$ sudo ./uio_reg 0x5400
-reg_offset is 0x00005400
-reg[0x00005400]: 0x6DF1DEF0
-dong@X220:~/work/uio_reg/src/uio_reg$ sudo ./uio_reg 0x5404
-reg_offset is 0x00005404
-reg[0x00005404]: 0x8000C29E
+dong@W530:~/work/dpdk/tags/dpdk-17.08$ lspci | grep -i eth
+00:19.0 Ethernet controller: Intel Corporation 82579LM Gigabit Network Connection (rev 04)
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 00:19.0 -b 0 -r 0x5400 2
+read, offset 0x00005400, length 2.
+bar number: 0, bdf: 00:19.0
+    OFFSET                     VALUE
+0x00005400                0x540E973C
+0x00005404                0x8000CC5C
 
 We load the native driver to 82579, then read the ethernet address:
-dong@X220:~/work/uio_reg/src/uio_reg$ ifconfig enp0s25
+dong@W530:~/work/uio_reg/src/uio_reg$ ifconfig enp0s25
 enp0s25   Link encap:Ethernet  HWaddr f0:de:f1:6d:9e:c2  
           UP BROADCAST MULTICAST  MTU:1500  Metric:1
           RX packets:0 errors:0 dropped:0 overruns:0 frame:0
