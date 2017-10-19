@@ -13,21 +13,40 @@ Step 2 RUN
 The PCIe device is 82579 NIC. We can verify the application by access ethernet address register (RAL and RAH).
 dong@W530:~/work/dpdk/tags/dpdk-17.08$ lspci | grep -i eth
 00:19.0 Ethernet controller: Intel Corporation 82579LM Gigabit Network Connection (rev 04)
-dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 00:19.0 -b 0 -r 0x5400 2
-read, offset 0x00005400, length 2.
-bar number: 0, bdf: 00:19.0
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 0000:00:19.0 -b 0 -r 0x5400 4
+READ, offset [0x00005400], count [4], BAR number [0], BDF [0000:00:19.0].
     OFFSET                     VALUE
 0x00005400                0x540E973C
 0x00005404                0x8000CC5C
+0x00005408                0x00000000
+0x0000540C                0x00000000
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 0000:00:19.0 -b 0 -w 0x5408 0x12345678
+WRITE, offset [0x00005408], value [0x12345678], BAR number [0], BDF [0000:00:19.0].
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 00:19.0 -b 0 -r 0x5400 4
+READ, offset [0x00005400], count [4], BAR number [0], BDF [00:19.0].
+    OFFSET                     VALUE
+0x00005400                0x540E973C
+0x00005404                0x8000CC5C
+0x00005408                0x12345678
+0x0000540C                0x00000000
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 00:19.0 -b 0 -w 0x540C 0xaaaabbbb
+\WRITE, offset [0x0000540C], value [0xAAAABBBB], BAR number [0], BDF [00:19.0].
+dong@W530:~/work/uio_reg/src$ sudo ./uio_reg -s 00:19.0 -b 0 -r 0x5400 4
+READ, offset [0x00005400], count [4], BAR number [0], BDF [00:19.0].
+    OFFSET                     VALUE
+0x00005400                0x540E973C
+0x00005404                0x8000CC5C
+0x00005408                0x12345678
+0x0000540C                0x0000BBBB
 
-We load the native driver to 82579, then read the ethernet address:
-dong@W530:~/work/uio_reg/src/uio_reg$ ifconfig enp0s25
-enp0s25   Link encap:Ethernet  HWaddr f0:de:f1:6d:9e:c2  
+[VERIFY]We load the native driver to 82579, then read the ethernet address:
+dong@W530:~/work/uio_reg$ ifconfig enp0s25
+enp0s25   Link encap:Ethernet  HWaddr 3c:97:0e:54:5c:cc  
           UP BROADCAST MULTICAST  MTU:1500  Metric:1
           RX packets:0 errors:0 dropped:0 overruns:0 frame:0
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:1000 
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
-          Interrupt:20 Memory:f2500000-f2520000
+          Interrupt:20 Memory:f3a00000-f3a20000
 
 The ethernet address which read by uio_reg is right.

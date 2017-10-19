@@ -462,11 +462,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (input_param.operate == OP_READ)
-		printf("read, offset 0x%08X, length %u.\n", input_param.offset, input_param.count);
+		printf("READ, offset [0x%08X], count [%u], ", input_param.offset, input_param.count);
 	else
-		printf("write, offset 0x%08X, value 0x%08X.\n", input_param.offset, input_param.value);
+		printf("WRITE, offset [0x%08X], value [0x%08X], ", input_param.offset, input_param.value);
 
-	printf("bar number: %d, bdf: %s\n", input_param.bar_num, input_param.bdf);
+	printf("BAR number [%d], BDF [%s].\n", input_param.bar_num, input_param.bdf);
 
 	/* priority: bdf > name > default */
 	if (input_param.bdf[0] != '\0') {
