@@ -1,4 +1,9 @@
-This is simple tool to access MMIO register of BAR0. Commonly, I use it to debug NIC PMD in DPDK.
+This is simple tool to access a PCIe device's MMIO register.
+
+Why I wrote this tool?
+I was a FPGA engineer working on a SmartNIC project, we need debug it in user space with UIO/igb_uio. Though DPDK have a test application named "testpmd", it is too big and complex to use for a FPGA engineer. So I wrote an applicaton without DPDK library to debug my SmartNIC, e.g. read queue index, module state and packet statistics register.
+Now I find it also can be used for normal FPGA Add-In card test and debug. I plan to add a kernel module to instead igb_uio which comes from DPDK (of course, will refer to igb_uio and uio_reg still can be used with igb_uio).
+
 
 HOWTO
 
