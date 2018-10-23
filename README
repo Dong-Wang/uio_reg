@@ -55,3 +55,5 @@ enp0s25   Link encap:Ethernet  HWaddr 3c:97:0e:54:5c:cc
           Interrupt:20 Memory:f3a00000-f3a20000
 
 The ethernet address which read by uio_reg is right.
+
+Also, you can validate uio_reg with Intel 82599/X550 series NIC. MAC address is stored in 0x0000A200 and 0x0000A204 on BAR0.
